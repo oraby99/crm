@@ -51,7 +51,7 @@ class ViewCustomer extends ViewRecord
 
                     Forms\Components\Select::make('new_status_id')
                         ->label('تغيير الحالة إلى')
-                        ->relationship('status', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order'))
+                        ->relationship('status', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
                         ->nullable()
                         ->searchable()
                         ->preload(),
@@ -160,6 +160,111 @@ class ViewCustomer extends ViewRecord
                             ->dateTime('d/m/Y H:i'),
                     ])
                     ->columns(4),
+
+                Section::make('سجل المتابعات التفصيلي')
+                    ->icon('heroicon-o-document-text')
+                    ->schema(function (Customer $record): array {
+                        $activities = $record->activities()
+                            ->reorder('id', 'asc')
+                            ->with(['user', 'oldStatus', 'newStatus'])
+                            ->get();
+
+                        if ($activities->isEmpty()) {
+                            return [
+                                \Filament\Infolists\Components\TextEntry::make('no_activities')
+                                    ->hiddenLabel()
+                                    ->default('لم يتم تسجيل أي متابعات أو أنشطة لهذا العميل بعد.')
+                                    ->color('gray')
+                                    ->columnSpanFull(),
+                            ];
+                        }
+
+                        $activityData = [];
+                        foreach ($activities as $i => $activity) {
+                            $activityData[] = [
+                                'num' => $i + 1,
+                                'activity' => $activity,
+                            ];
+                        }
+
+                        // Display newest first (descending), with correct chronological numbers
+                        $activityData = array_reverse($activityData);
+                        $totalCount = count($activityData);
+
+                        $items = [];
+                        foreach ($activityData as $item) {
+                            $num = $item['num'];
+                            /** @var CustomerActivity $activity */
+                            $activity = $item['activity'];
+
+                            $typeLabel = $activity->activity_type ? $activity->activity_type->label() : 'نشاط';
+                            $typeColor = $activity->activity_type ? $activity->activity_type->color() : 'gray';
+                            $dateStr = $activity->created_at ? $activity->created_at->format('d/m/Y H:i') : '';
+                            $userName = $activity->user ? $activity->user->name : 'غير محدد';
+                            $notes = $activity->notes ?: 'لا توجد ملاحظات';
+
+                            $statusChange = null;
+                            if ($activity->oldStatus || $activity->newStatus) {
+                                $oldName = $activity->oldStatus?->name;
+                                $newName = $activity->newStatus?->name;
+                                if ($oldName && $newName && $oldName !== $newName) {
+                                    $statusChange = "{$oldName} ➔ {$newName}";
+                                } elseif ($newName) {
+                                    $statusChange = $newName;
+                                }
+                            }
+
+                            $nextDate = $activity->follow_up_date
+                                ? $activity->follow_up_date->format('d/m/Y H:i')
+                                : null;
+
+                            $fields = [
+                                \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_user")
+                                    ->label('منفذ المتابعة')
+                                    ->default($userName)
+                                    ->icon('heroicon-o-user'),
+
+                                \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_type")
+                                    ->label('نوع النشاط')
+                                    ->default($typeLabel)
+                                    ->badge()
+                                    ->color($typeColor),
+                            ];
+
+                            if ($statusChange) {
+                                $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_status")
+                                    ->label('تغيير الحالة')
+                                    ->default($statusChange)
+                                    ->badge()
+                                    ->color('info');
+                            }
+
+                            if ($nextDate) {
+                                $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_next")
+                                    ->label('موعد المتابعة القادمة')
+                                    ->default($nextDate)
+                                    ->icon('heroicon-o-calendar')
+                                    ->color('warning');
+                            }
+
+                            $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_notes")
+                                ->label('الملاحظات والتفاصيل')
+                                ->default($notes)
+                                ->columnSpanFull()
+                                ->markdown();
+
+                            $badgeTag = ($num === $totalCount) ? " — (أحدث متابعة)" : "";
+
+                            $items[] = Section::make("المتابعة رقم {$num}{$badgeTag} ({$dateStr})")
+                                ->icon('heroicon-o-chat-bubble-bottom-center-text')
+                                ->compact()
+                                ->schema($fields)
+                                ->columns(3);
+                        }
+
+                        return $items;
+                    })
+                    ->collapsible(),
 
                 Section::make('التفاصيل')
                     ->schema([

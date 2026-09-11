@@ -29,6 +29,7 @@ class Customer extends Model
         'team_leader_id',
         'created_by',
         'next_follow_up_at',
+        'created_at',
     ];
 
     /**
@@ -107,7 +108,7 @@ class Customer extends Model
      */
     public function activities(): HasMany
     {
-        return $this->hasMany(CustomerActivity::class)->latest();
+        return $this->hasMany(CustomerActivity::class);
     }
 
     /**
@@ -128,6 +129,135 @@ class Customer extends Model
     public function isContacted(): bool
     {
         return $this->activities()->exists();
+    }
+
+    /**
+     * Get a formatted summary string for a specific follow-up by index (1-based index).
+     */
+    public function getFollowUpSummary(int $index): ?string
+    {
+        $activities = $this->relationLoaded('activities')
+            ? $this->activities->sortBy('created_at')->values()
+            : $this->activities()->reorder('id', 'asc')->with('user')->get();
+
+        $activity = $activities->get($index - 1);
+
+        if (! $activity) {
+            return null;
+        }
+
+        $type = $activity->activity_type ? $activity->activity_type->label() : 'نشاط';
+        $date = $activity->created_at ? $activity->created_at->format('d/m/Y H:i') : '';
+        $user = $activity->user ? $activity->user->name : '';
+        $notes = $activity->notes ?? 'بدون ملاحظات';
+
+        return "{$date} [{$type} - {$user}]: {$notes}";
+    }
+
+    /**
+     * Get summary of the latest follow-up.
+     */
+    public function getLatestFollowUpSummary(): ?string
+    {
+        $activity = $this->relationLoaded('activities')
+            ? $this->activities->sortByDesc('created_at')->first()
+            : $this->activities()->reorder('id', 'desc')->with('user')->first();
+
+        if (! $activity) {
+            return null;
+        }
+
+        $type = $activity->activity_type ? $activity->activity_type->label() : 'نشاط';
+        $date = $activity->created_at ? $activity->created_at->format('d/m/Y H:i') : '';
+        $user = $activity->user ? $activity->user->name : '';
+        $notes = $activity->notes ?? 'بدون ملاحظات';
+
+        return "{$date} [{$type} - {$user}]: {$notes}";
+    }
+
+    /**
+     * Get ONLY the note text for a specific follow-up (1-based index).
+     */
+    public function getFollowUpNotes(int $index): ?string
+    {
+        $activities = $this->relationLoaded('activities')
+            ? $this->activities->sortBy('created_at')->values()
+            : $this->activities()->reorder('id', 'asc')->get();
+
+        $activity = $activities->get($index - 1);
+
+        if (! $activity) {
+            return null;
+        }
+
+        return $activity->notes ?: 'بدون ملاحظات';
+    }
+
+    /**
+     * Get ONLY the note text of the latest follow-up.
+     */
+    public function getLatestFollowUpNotes(): ?string
+    {
+        $activity = $this->relationLoaded('activities')
+            ? $this->activities->sortByDesc('created_at')->first()
+            : $this->activities()->reorder('id', 'desc')->first();
+
+        if (! $activity) {
+            return null;
+        }
+
+        return $activity->notes ?: 'بدون ملاحظات';
+    }
+
+    /**
+     * Get all follow-ups formatted as a clean numbered list.
+     */
+    public function getAllFollowUpsSummary(): ?string
+    {
+        $activities = $this->relationLoaded('activities')
+            ? $this->activities->sortBy('created_at')->values()
+            : $this->activities()->reorder('id', 'asc')->with('user')->get();
+
+        if ($activities->isEmpty()) {
+            return null;
+        }
+
+        $summaries = [];
+        foreach ($activities as $i => $activity) {
+            $num = $i + 1;
+            $type = $activity->activity_type ? $activity->activity_type->label() : 'نشاط';
+            $date = $activity->created_at ? $activity->created_at->format('d/m/Y H:i') : '';
+            $user = $activity->user ? $activity->user->name : '';
+            $notes = $activity->notes ?? 'بدون ملاحظات';
+            $summaries[] = "#{$num} - {$date} [{$type} - {$user}]: {$notes}";
+        }
+
+        return implode("\n", $summaries);
+    }
+
+    /**
+     * Get a dynamic associative array of all follow-ups (1-based index => formatted string).
+     *
+     * @return array<int, string>
+     */
+    public function getFormattedFollowUpsArray(): array
+    {
+        $activities = $this->relationLoaded('activities')
+            ? $this->activities->sortBy('created_at')->values()
+            : $this->activities()->reorder('id', 'asc')->with('user')->get();
+
+        $result = [];
+        foreach ($activities as $index => $activity) {
+            $num = $index + 1;
+            $type = $activity->activity_type ? $activity->activity_type->label() : 'نشاط';
+            $date = $activity->created_at ? $activity->created_at->format('d/m/Y H:i') : '';
+            $user = $activity->user ? $activity->user->name : '';
+            $notes = $activity->notes ?? 'بدون ملاحظات';
+
+            $result[$num] = "{$date} [{$type} - {$user}]: {$notes}";
+        }
+
+        return $result;
     }
 
     /**

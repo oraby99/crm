@@ -24,6 +24,11 @@ class CustomerScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
+        // CLI / Artisan commands run without Auth user — skip scoping in console
+        if (app()->runningInConsole()) {
+            return;
+        }
+
         $user = Auth::user();
 
         if (! $user) {
@@ -33,18 +38,22 @@ class CustomerScope implements Scope
             return;
         }
 
-        if ($user->role === UserRole::Admin) {
+        if ($user->isAdmin()) {
             // Admin sees everything — no scope restriction.
             return;
         }
 
-        if ($user->role === UserRole::TeamLeader) {
+        if ($user->isTeamLeader()) {
             $builder->where('team_leader_id', $user->id);
 
             return;
         }
 
-        // Sales — see only their own customers.
-        $builder->where('sales_id', $user->id);
+        if ($user->isSales()) {
+            $builder->where('sales_id', $user->id);
+
+            return;
+        }
     }
 }
+

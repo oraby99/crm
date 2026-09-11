@@ -39,10 +39,10 @@ class CustomersImport implements ToCollection
         $errors = [];
 
         // Cache lookups (normalized string -> ID)
-        $platforms = Platform::all()->mapWithKeys(fn ($p) => [mb_strtolower(trim($p->name)) => $p->id, (string) $p->id => $p->id])->toArray();
-        $statuses = CustomerStatus::all()->mapWithKeys(fn ($s) => [mb_strtolower(trim($s->name)) => $s->id, (string) $s->id => $s->id])->toArray();
-        $needs = CustomerNeed::all()->mapWithKeys(fn ($n) => [mb_strtolower(trim($n->name)) => $n->id, (string) $n->id => $n->id])->toArray();
-        $users = User::all()->mapWithKeys(fn ($u) => [mb_strtolower(trim($u->name)) => $u, (string) $u->id => $u])->toArray();
+        $platforms = Platform::all()->mapWithKeys(fn ($p) => [mb_strtolower(trim($p->name)) => $p->id, (string) $p->id => $p->id])->all();
+        $statuses = CustomerStatus::all()->mapWithKeys(fn ($s) => [mb_strtolower(trim($s->name)) => $s->id, (string) $s->id => $s->id])->all();
+        $needs = CustomerNeed::all()->mapWithKeys(fn ($n) => [mb_strtolower(trim($n->name)) => $n->id, (string) $n->id => $n->id])->all();
+        $users = User::all()->mapWithKeys(fn ($u) => [mb_strtolower(trim($u->name)) => $u, (string) $u->id => $u])->all();
 
         $uploader = User::find($this->importRecord->uploaded_by);
 
@@ -69,26 +69,37 @@ class CustomersImport implements ToCollection
             'total_rows' => $dataRows->count(),
         ]);
 
+        $defaultIndexMap = [
+            'name' => 0,
+            'phone' => 1,
+            'whatsapp' => 2,
+            'status' => 3,
+            'platform' => 4,
+            'need' => 5,
+            'sales' => 6,
+            'details' => 7,
+        ];
+
         $rowCounter = 1;
         foreach ($dataRows as $row) {
             $rowCounter++; // 1-based row index in file
 
             try {
                 // Extract field values
-                $name = $this->getFieldValue($row, $headerMap, 'name');
-                $rawPhone = $this->getFieldValue($row, $headerMap, 'phone');
+                $name = $this->getFieldValue($row, $headerMap, 'name', $hasHeaderRow ? null : $defaultIndexMap['name']);
+                $rawPhone = $this->getFieldValue($row, $headerMap, 'phone', $hasHeaderRow ? null : $defaultIndexMap['phone']);
                 $phone = $this->normalizePhone($rawPhone);
 
                 if (empty($name) || empty($phone)) {
                     throw new \Exception('اسم العميل ورقم الهاتف مطلوبان (تأكد من وجود بيانات الاسم والهاتف في هذا الصف)');
                 }
 
-                $whatsappPhone = $this->normalizePhone($this->getFieldValue($row, $headerMap, 'whatsapp'));
-                $platformInput = $this->getFieldValue($row, $headerMap, 'platform');
-                $needInput = $this->getFieldValue($row, $headerMap, 'need');
-                $statusInput = $this->getFieldValue($row, $headerMap, 'status');
-                $salesInput = $this->getFieldValue($row, $headerMap, 'sales');
-                $details = $this->getFieldValue($row, $headerMap, 'details');
+                $whatsappPhone = $this->normalizePhone($this->getFieldValue($row, $headerMap, 'whatsapp', $hasHeaderRow ? null : $defaultIndexMap['whatsapp']));
+                $platformInput = $this->getFieldValue($row, $headerMap, 'platform', $hasHeaderRow ? null : $defaultIndexMap['platform']);
+                $needInput = $this->getFieldValue($row, $headerMap, 'need', $hasHeaderRow ? null : $defaultIndexMap['need']);
+                $statusInput = $this->getFieldValue($row, $headerMap, 'status', $hasHeaderRow ? null : $defaultIndexMap['status']);
+                $salesInput = $this->getFieldValue($row, $headerMap, 'sales', $hasHeaderRow ? null : $defaultIndexMap['sales']);
+                $details = $this->getFieldValue($row, $headerMap, 'details', $hasHeaderRow ? null : $defaultIndexMap['details']);
 
                 $platformId = $platformInput ? ($platforms[mb_strtolower(trim($platformInput))] ?? null) : null;
                 $statusId = $statusInput ? ($statuses[mb_strtolower(trim($statusInput))] ?? null) : null;
@@ -118,8 +129,15 @@ class CustomersImport implements ToCollection
                 // Handle sales assignment
                 $assignedSales = $salesInput ? ($users[mb_strtolower(trim($salesInput))] ?? null) : null;
                 if ($assignedSales) {
-                    $data['sales_id'] = $assignedSales->id;
-                    $data['team_leader_id'] = $assignedSales->team_leader_id;
+                    $salesId = is_array($assignedSales) ? ($assignedSales['id'] ?? null) : $assignedSales->id;
+                    $teamLeaderId = is_array($assignedSales) ? ($assignedSales['team_leader_id'] ?? null) : $assignedSales->team_leader_id;
+
+                    if ($salesId) {
+                        $data['sales_id'] = $salesId;
+                    }
+                    if ($teamLeaderId) {
+                        $data['team_leader_id'] = $teamLeaderId;
+                    }
                 } elseif ($uploader && $uploader->isSales()) {
                     $data['sales_id'] = $uploader->id;
                     $data['team_leader_id'] = $uploader->team_leader_id;
@@ -174,7 +192,7 @@ class CustomersImport implements ToCollection
             'name' => ['name', 'customername', 'fullname', 'اسمالعميل', 'الاسم', 'اسموالعميل', 'اسمعميل', 'asmlaamyl', 'asmalamyl', 'alasm', 'asm'],
             'phone' => ['phone', 'mobile', 'phonenumber', 'رقمالهاتف', 'الهاتف', 'جوال', 'رقمالجوال', 'rqmalhatf', 'rqmlhatf', 'alhatf', 'alhtf'],
             'whatsapp' => ['whatsapp', 'whatsappphone', 'waphone', 'رقمالواتساب', 'الواتساب', 'واتساب', 'rqmalvatsab', 'alvatsab', 'vatsab'],
-            'platform' => ['platform', 'source', 'platformid', 'المصدر', 'المنصة', 'المصدرالمنصة', 'المصدرالمنصة', 'almasdr', 'almnst'],
+            'platform' => ['platform', 'source', 'platformid', 'المصدر', 'المنصة', 'المصدرالمنصة', 'almasdr', 'almnst'],
             'need' => ['need', 'customerneed', 'productneed', 'الاحتياج', 'احتياجالعميل', 'احتياج', 'alahtyaj', 'ahtyaj'],
             'status' => ['status', 'customerstatus', 'الحالة', 'حالةالعميل', 'حالة', 'alhalat', 'halat'],
             'sales' => ['sales', 'salesid', 'salesrep', 'المندوب', 'مندوبالمبيعات', 'مندوب', 'almndvb', 'mndvb'],
@@ -192,10 +210,11 @@ class CustomersImport implements ToCollection
         return null;
     }
 
-    private function getFieldValue(Collection|array $row, array $headerMap, string $field): ?string
+    private function getFieldValue(Collection|array $row, array $headerMap, string $field, ?int $defaultColIdx = null): ?string
     {
-        if (isset($headerMap[$field])) {
-            $colIdx = $headerMap[$field];
+        $colIdx = $headerMap[$field] ?? $defaultColIdx;
+
+        if ($colIdx !== null) {
             $val = is_array($row) ? ($row[$colIdx] ?? null) : $row->get($colIdx);
             if (filled($val)) {
                 return $this->cleanString((string) $val);
@@ -221,4 +240,5 @@ class CustomersImport implements ToCollection
 
         return trim($phone);
     }
+
 }

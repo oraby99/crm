@@ -107,17 +107,23 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::Admin;
+        $value = $this->role instanceof UserRole ? $this->role->value : ($this->role ?? $this->getRawOriginal('role'));
+
+        return in_array(strtolower((string) $value), ['admin', 'superadmin', 'super_admin', 'administrator']);
     }
 
     public function isTeamLeader(): bool
     {
-        return $this->role === UserRole::TeamLeader;
+        $value = $this->role instanceof UserRole ? $this->role->value : ($this->role ?? $this->getRawOriginal('role'));
+
+        return in_array(strtolower((string) $value), ['teamleader', 'team_leader', 'leader']);
     }
 
     public function isSales(): bool
     {
-        return $this->role === UserRole::Sales;
+        $value = $this->role instanceof UserRole ? $this->role->value : ($this->role ?? $this->getRawOriginal('role'));
+
+        return in_array(strtolower((string) $value), ['sales', 'sales_rep', 'seller']);
     }
 
     /**

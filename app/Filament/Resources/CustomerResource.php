@@ -81,19 +81,27 @@ class CustomerResource extends Resource
                             ->required()
                             ->tel()
                             ->maxLength(30)
-                            ->rules([
-                                fn ($get, ?\Illuminate\Database\Eloquent\Model $record): \Closure => function (string $attribute, $value, \Closure $fail) use ($record) {
-                                    $existingCustomer = \App\Models\Customer::where('phone', $value)
-                                        ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
-                                        ->with('sales')
-                                        ->first();
-                                        
-                                    if ($existingCustomer) {
-                                        $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
-                                        $fail("رقم الهاتف مسجل بالفعل مع المندوب: {$salesName}");
-                                    }
-                                },
-                            ]),
+                            ->live(onBlur: true)
+                            ->helperText(function ($state, ?\Illuminate\Database\Eloquent\Model $record) {
+                                if (blank($state)) {
+                                    return null;
+                                }
+
+                                $existingCustomer = \App\Models\Customer::where('phone', $state)
+                                    ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
+                                    ->with('sales')
+                                    ->first();
+
+                                if ($existingCustomer) {
+                                    $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
+
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<span class="text-danger-600 dark:text-danger-400 text-sm font-medium">رقم الهاتف مسجل بالفعل مع المندوب: '.e($salesName).'</span>'
+                                    );
+                                }
+
+                                return null;
+                            }),
 
                         Forms\Components\TextInput::make('whatsapp_phone')
                             ->label('رقم الواتساب')
@@ -106,7 +114,7 @@ class CustomerResource extends Resource
                             ->relationship(
                                 'platform',
                                 'name',
-                                fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order')
+                                fn (Builder $query) => $query->where('is_active', true)->orderBy('id')
                             )
                             ->searchable()
                             ->preload()
@@ -117,7 +125,7 @@ class CustomerResource extends Resource
                             ->relationship(
                                 'customerNeed',
                                 'name',
-                                fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order')
+                                fn (Builder $query) => $query->where('is_active', true)->orderBy('id')
                             )
                             ->searchable()
                             ->preload()
@@ -128,7 +136,7 @@ class CustomerResource extends Resource
                             ->relationship(
                                 'status',
                                 'name',
-                                fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order')
+                                fn (Builder $query) => $query->where('is_active', true)->orderBy('id')
                             )
                             ->searchable()
                             ->preload()
@@ -266,6 +274,68 @@ class CustomerResource extends Resource
                     ->color(fn ($state) => $state > 0 ? 'success' : 'danger')
                     ->tooltip(fn ($state) => $state > 0 ? "تم التواصل ({$state} نشاط)" : 'لم يتم التواصل بعد'),
 
+                Tables\Columns\TextColumn::make('latest_follow_up')
+                    ->label('أحدث متابعة')
+                    ->state(fn (Customer $record) => $record->getLatestFollowUpNotes())
+                    ->tooltip(fn (Customer $record) => $record->getLatestFollowUpSummary())
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('first_follow_up')
+                    ->label('المتابعة الأولى')
+                    ->state(fn (Customer $record) => $record->getFollowUpNotes(1))
+                    ->tooltip(fn (Customer $record) => $record->getFollowUpSummary(1))
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('second_follow_up')
+                    ->label('المتابعة الثانية')
+                    ->state(fn (Customer $record) => $record->getFollowUpNotes(2))
+                    ->tooltip(fn (Customer $record) => $record->getFollowUpSummary(2))
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('third_follow_up')
+                    ->label('المتابعة الثالثة')
+                    ->state(fn (Customer $record) => $record->getFollowUpNotes(3))
+                    ->tooltip(fn (Customer $record) => $record->getFollowUpSummary(3))
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('fourth_follow_up')
+                    ->label('المتابعة الرابعة')
+                    ->state(fn (Customer $record) => $record->getFollowUpNotes(4))
+                    ->tooltip(fn (Customer $record) => $record->getFollowUpSummary(4))
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('fifth_follow_up')
+                    ->label('المتابعة الخامسة')
+                    ->state(fn (Customer $record) => $record->getFollowUpNotes(5))
+                    ->tooltip(fn (Customer $record) => $record->getFollowUpSummary(5))
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(60)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('all_follow_ups')
+                    ->label('جميع المتابعات')
+                    ->state(fn (Customer $record) => $record->getAllFollowUpsSummary())
+                    ->placeholder('—')
+                    ->wrap()
+                    ->limit(100)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('next_follow_up_at')
                     ->label('موعد المتابعة')
                     ->dateTime('d/m/Y H:i')
@@ -384,7 +454,7 @@ class CustomerResource extends Resource
 
                         Forms\Components\Select::make('new_status_id')
                             ->label('تغيير الحالة إلى')
-                            ->relationship('status', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order'))
+                            ->relationship('status', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
                             ->nullable()
                             ->searchable()
                             ->preload(),
@@ -478,7 +548,7 @@ class CustomerResource extends Resource
                             Forms\Components\Select::make('status_id')
                                 ->label('الحالة الجديدة')
                                 ->options(
-                                    CustomerStatus::where('is_active', true)->orderBy('sort_order')->pluck('name', 'id')
+                                    CustomerStatus::where('is_active', true)->orderBy('id')->pluck('name', 'id')
                                 )
                                 ->required(),
 
@@ -548,7 +618,16 @@ class CustomerResource extends Resource
                                 $file = fopen('php://output', 'w');
                                 fputs($file, "\xEF\xBB\xBF");
 
-                                fputcsv($file, [
+                                // Dynamically calculate max follow-up count among selected records
+                                $maxFollowUps = 0;
+                                foreach ($records as $customer) {
+                                    $count = $customer->activities()->count();
+                                    if ($count > $maxFollowUps) {
+                                        $maxFollowUps = $count;
+                                    }
+                                }
+
+                                $csvHeaders = [
                                     'ID',
                                     'اسم العميل',
                                     'رقم الهاتف',
@@ -559,12 +638,23 @@ class CustomerResource extends Resource
                                     'مندوب المبيعات',
                                     'مدير الفريق',
                                     'التفاصيل والملاحظات',
-                                    'موعد المتابعة',
-                                    'تاريخ الإضافة',
-                                ]);
+                                ];
+
+                                for ($i = 1; $i <= $maxFollowUps; $i++) {
+                                    $csvHeaders[] = "المتابعة رقم {$i}";
+                                }
+
+                                $csvHeaders[] = 'أحدث متابعة';
+                                $csvHeaders[] = 'سجل جميع المتابعات';
+                                $csvHeaders[] = 'موعد المتابعة التالية';
+                                $csvHeaders[] = 'تاريخ الإضافة';
+
+                                fputcsv($file, $csvHeaders);
 
                                 foreach ($records as $customer) {
-                                    fputcsv($file, [
+                                    $followUpsMap = $customer->getFormattedFollowUpsArray();
+
+                                    $row = [
                                         $customer->id,
                                         $customer->name,
                                         $customer->phone,
@@ -575,9 +665,18 @@ class CustomerResource extends Resource
                                         $customer->sales?->name ?? '',
                                         $customer->teamLeader?->name ?? '',
                                         $customer->details ?? '',
-                                        $customer->next_follow_up_at?->format('Y-m-d H:i') ?? '',
-                                        $customer->created_at?->format('Y-m-d H:i') ?? '',
-                                    ]);
+                                    ];
+
+                                    for ($i = 1; $i <= $maxFollowUps; $i++) {
+                                        $row[] = $followUpsMap[$i] ?? '';
+                                    }
+
+                                    $row[] = $customer->getLatestFollowUpSummary() ?? '';
+                                    $row[] = $customer->getAllFollowUpsSummary() ?? '';
+                                    $row[] = $customer->next_follow_up_at?->format('Y-m-d H:i') ?? '';
+                                    $row[] = $customer->created_at?->format('Y-m-d H:i') ?? '';
+
+                                    fputcsv($file, $row);
                                 }
 
                                 fclose($file);

@@ -60,8 +60,11 @@ class UncontactedAlertWidget extends BaseWidget
                     ->url(fn (User $record) => route('filament.admin.resources.customers.index', [
                         'alert_not_contacted' => 1,
                         'alert_sales_id' => $record->id,
-                    ]))
+                    ])),
             ])
+            ->emptyStateHeading('ممتاز! جميع المندوبين قاموا بالتواصل مع عملائهم')
+            ->emptyStateDescription('لا يوجد حالياً أي بائع لديه عملاء معلقين لم يتم التواصل معهم.')
+            ->emptyStateIcon('heroicon-o-check-circle')
             ->paginated(false);
     }
 }

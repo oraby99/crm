@@ -194,9 +194,19 @@ class UserResource extends Resource
                             ->send();
                     }),
 
-                Tables\Columns\TextColumn::make('assignedCustomers_count')
+                Tables\Columns\TextColumn::make('customers_count')
                     ->label('العملاء')
-                    ->counts('assignedCustomers')
+                    ->state(function (User $record): int {
+                        if ($record->isSales()) {
+                            return \App\Models\Customer::withoutGlobalScopes()->where('sales_id', $record->id)->count();
+                        }
+
+                        if ($record->isTeamLeader()) {
+                            return \App\Models\Customer::withoutGlobalScopes()->where('team_leader_id', $record->id)->count();
+                        }
+
+                        return \App\Models\Customer::withoutGlobalScopes()->count();
+                    })
                     ->badge()
                     ->color('primary'),
 

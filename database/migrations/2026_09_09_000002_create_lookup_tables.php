@@ -14,27 +14,21 @@ return new class extends Migration
         Schema::create('platforms', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
             $table->boolean('is_active')->default(true);
-            $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
         });
 
         Schema::create('customer_needs', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
             $table->boolean('is_active')->default(true);
-            $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
         });
 
         Schema::create('customer_statuses', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
             $table->string('color')->default('gray');
-            $table->unsignedSmallInteger('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->boolean('is_final')->default(false);
             $table->timestamps();

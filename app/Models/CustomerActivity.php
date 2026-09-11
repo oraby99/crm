@@ -22,6 +22,7 @@ class CustomerActivity extends Model
         'new_status_id',
         'notes',
         'follow_up_date',
+        'created_at',
     ];
 
     /**

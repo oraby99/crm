@@ -38,7 +38,7 @@ class ActivitiesRelationManager extends RelationManager
 
                 Forms\Components\Select::make('new_status_id')
                     ->label('تغيير الحالة إلى')
-                    ->relationship('newStatus', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('sort_order'))
+                    ->relationship('newStatus', 'name', fn (Builder $query) => $query->where('is_active', true)->orderBy('id'))
                     ->nullable()
                     ->searchable()
                     ->preload(),

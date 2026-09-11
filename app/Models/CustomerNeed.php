@@ -16,9 +16,7 @@ class CustomerNeed extends Model
      */
     protected $fillable = [
         'name',
-        'slug',
         'is_active',
-        'sort_order',
     ];
 
     /**
@@ -28,7 +26,6 @@ class CustomerNeed extends Model
     {
         return [
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 
@@ -41,13 +38,13 @@ class CustomerNeed extends Model
     }
 
     /**
-     * Scope to only active needs, ordered by sort_order.
+     * Scope to only active needs.
      *
      * @param  Builder<CustomerNeed>  $query
      * @return Builder<CustomerNeed>
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true)->orderBy('sort_order');
+        return $query->where('is_active', true)->orderBy('id');
     }
 }

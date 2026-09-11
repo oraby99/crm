@@ -92,42 +92,36 @@ class UserAndDataSeeder extends Seeder
 
         /** @var User $salesUser */
         foreach ($allSales as $salesUser) {
-            $teamLeader = $salesUser->teamLeader;
+            for ($i = 0; $i < 4; $i++) {
+                $createdDate = now()->subDays(rand(1, 10))->subHours(rand(1, 12));
 
-            for ($i = 0; $i < 15; $i++) {
-                $customer = Customer::withoutGlobalScopes()->firstOrCreate(
-                    ['phone' => '010'.str_pad((string) ($salesUser->id * 100 + $i), 8, '0', STR_PAD_LEFT)],
-                    [
-                        'name' => fake('ar_SA')->name(),
-                        'whatsapp_phone' => null,
-                        'platform_id' => $platforms->random()->id,
-                        'customer_need_id' => $needs->random()->id,
-                        'details' => fake()->optional(0.6)->sentence(),
-                        'status_id' => $statuses->random()->id,
-                        'sales_id' => $salesUser->id,
-                        'team_leader_id' => $teamLeader?->id,
-                        'created_by' => $salesUser->id,
-                        'next_follow_up_at' => fake()->optional(0.5)->dateTimeBetween('-3 days', '+10 days'),
-                    ]
-                );
+                $customer = Customer::factory()->forSales($salesUser)->create([
+                    'phone' => '010'.str_pad((string) ($salesUser->id * 100 + $i), 8, '0', STR_PAD_LEFT),
+                    'created_at' => $createdDate,
+                    'updated_at' => $createdDate,
+                ]);
 
-                // Add 1-3 activities per customer
-                $activityCount = rand(0, 3);
+                // Add 1-2 activities per customer with realistic first response delay (15 mins to 5 hours after creation)
+                $activityCount = rand(1, 2);
+                $firstActDate = (clone $createdDate)->addMinutes(rand(30, 240));
+
                 for ($j = 0; $j < $activityCount; $j++) {
+                    $actDate = $j === 0 ? $firstActDate : (clone $firstActDate)->addHours(rand(4, 24));
+
                     CustomerActivity::withoutGlobalScopes()->create([
                         'customer_id' => $customer->id,
                         'user_id' => $salesUser->id,
                         'activity_type' => fake()->randomElement(ActivityType::cases())->value,
                         'notes' => fake()->optional(0.7)->sentence(),
                         'follow_up_date' => fake()->optional(0.3)->dateTimeBetween('now', '+7 days'),
-                        'created_at' => fake()->dateTimeBetween('-30 days', 'now'),
-                        'updated_at' => now(),
+                        'created_at' => $actDate,
+                        'updated_at' => $actDate,
                     ]);
                 }
             }
         }
 
-        $this->command->info('✅ Seeded: 1 admin, 2 team leaders, 5 sales, ~75 customers with activities.');
+        $this->command->info('✅ Seeded: 1 admin, 2 team leaders, 5 sales, 20 sample customers with activities.');
         $this->command->info('');
         $this->command->info('Login credentials:');
         $this->command->info('  admin@crm.test         / password  (مدير النظام)');

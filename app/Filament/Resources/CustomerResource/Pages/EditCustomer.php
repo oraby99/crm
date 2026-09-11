@@ -28,17 +28,12 @@ class EditCustomer extends EditRecord
         ];
     }
 
-    protected function mutateFormDataBeforeFill(array $data): array
+    protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->originalData = $this->record->only([
             'name', 'phone', 'status_id', 'sales_id', 'team_leader_id',
         ]);
 
-        return $data;
-    }
-
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
         if (isset($data['sales_id'])) {
             $salesUser = User::find($data['sales_id']);
             $data['team_leader_id'] = $salesUser?->team_leader_id;
@@ -57,8 +52,8 @@ class EditCustomer extends EditRecord
             if (array_key_exists('status_id', $changedData)) {
                 AuditService::statusChanged(
                     $this->record,
-                    $this->originalData['status_id'],
-                    $newData['status_id']
+                    $this->originalData['status_id'] ?? null,
+                    $newData['status_id'] ?? null
                 );
             }
 
@@ -66,8 +61,8 @@ class EditCustomer extends EditRecord
             if (array_key_exists('sales_id', $changedData)) {
                 AuditService::customerAssigned(
                     $this->record,
-                    ['sales_id' => $this->originalData['sales_id']],
-                    ['sales_id' => $newData['sales_id']]
+                    ['sales_id' => $this->originalData['sales_id'] ?? null],
+                    ['sales_id' => $newData['sales_id'] ?? null]
                 );
             }
 

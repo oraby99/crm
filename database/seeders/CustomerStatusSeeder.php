@@ -8,21 +8,21 @@ use Illuminate\Database\Seeder;
 class CustomerStatusSeeder extends Seeder
 {
     /**
-     * @var list<array{name: string, slug: string, color: string, sort_order: int, is_final: bool}>
+     * @var list<array{name: string, color: string, is_final: bool}>
      */
     private array $statuses = [
-        ['name' => 'تحت المتابعة', 'slug' => 'under-follow-up', 'color' => 'warning', 'sort_order' => 1, 'is_final' => false],
-        ['name' => 'تمت الزيارة', 'slug' => 'site-visit-done', 'color' => 'info', 'sort_order' => 2, 'is_final' => false],
-        ['name' => 'دُفع الإيداع', 'slug' => 'deposit-paid', 'color' => 'primary', 'sort_order' => 3, 'is_final' => false],
-        ['name' => 'تم التعاقد', 'slug' => 'contract-signed', 'color' => 'success', 'sort_order' => 4, 'is_final' => false],
-        ['name' => 'مكتمل', 'slug' => 'completed', 'color' => 'success', 'sort_order' => 5, 'is_final' => true],
+        ['name' => 'تحت المتابعة', 'color' => 'warning', 'is_final' => false],
+        ['name' => 'تمت الزيارة', 'color' => 'info', 'is_final' => false],
+        ['name' => 'دُفع الإيداع', 'color' => 'primary', 'is_final' => false],
+        ['name' => 'تم التعاقد', 'color' => 'success', 'is_final' => false],
+        ['name' => 'مكتمل', 'color' => 'success', 'is_final' => true],
     ];
 
     public function run(): void
     {
         foreach ($this->statuses as $status) {
             CustomerStatus::firstOrCreate(
-                ['slug' => $status['slug']],
+                ['name' => $status['name']],
                 array_merge($status, ['is_active' => true])
             );
         }

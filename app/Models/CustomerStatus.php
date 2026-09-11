@@ -16,9 +16,7 @@ class CustomerStatus extends Model
      */
     protected $fillable = [
         'name',
-        'slug',
         'color',
-        'sort_order',
         'is_active',
         'is_final',
     ];
@@ -31,7 +29,6 @@ class CustomerStatus extends Model
         return [
             'is_active' => 'boolean',
             'is_final' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 
@@ -60,13 +57,13 @@ class CustomerStatus extends Model
     }
 
     /**
-     * Scope to only active statuses, ordered by sort_order.
+     * Scope to only active statuses.
      *
      * @param  Builder<CustomerStatus>  $query
      * @return Builder<CustomerStatus>
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true)->orderBy('sort_order');
+        return $query->where('is_active', true)->orderBy('id');
     }
 }

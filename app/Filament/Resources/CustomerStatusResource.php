@@ -10,12 +10,10 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 
 class CustomerStatusResource extends Resource
 {
@@ -45,14 +43,6 @@ class CustomerStatusResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('الاسم')
                     ->required()
-                    ->maxLength(255)
-                    ->live(debounce: 500)
-                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug', Str::slug($state ?? ''))),
-
-                Forms\Components\TextInput::make('slug')
-                    ->label('المعرف')
-                    ->required()
-                    ->unique(ignoreRecord: true)
                     ->maxLength(255),
 
                 Forms\Components\Select::make('color')
@@ -67,11 +57,6 @@ class CustomerStatusResource extends Resource
                     ])
                     ->default('gray')
                     ->required(),
-
-                Forms\Components\TextInput::make('sort_order')
-                    ->label('الترتيب')
-                    ->numeric()
-                    ->default(0),
 
                 Forms\Components\Toggle::make('is_active')
                     ->label('نشط')
@@ -94,10 +79,6 @@ class CustomerStatusResource extends Resource
                     ->badge()
                     ->color(fn (CustomerStatus $record) => $record->color)
                     ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->label('الترتيب')
                     ->sortable(),
 
                 Tables\Columns\IconColumn::make('is_active')
@@ -123,8 +104,7 @@ class CustomerStatusResource extends Resource
                     DeleteBulkAction::make()->label('حذف المحدد'),
                 ]),
             ])
-            ->reorderable('sort_order')
-            ->defaultSort('sort_order');
+            ->defaultSort('id');
     }
 
     public static function getPages(): array

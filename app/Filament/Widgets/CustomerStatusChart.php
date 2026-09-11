@@ -20,7 +20,7 @@ class CustomerStatusChart extends ChartWidget
     protected function getData(): array
     {
         $statuses = CustomerStatus::where('is_active', true)
-            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
         $data = [];
