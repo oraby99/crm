@@ -30,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('CRM')
+            ->brandName('Elwaly')
             ->colors([
                 'primary' => Color::Blue,
                 'gray' => Color::Slate,

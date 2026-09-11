@@ -145,17 +145,23 @@ class CustomersImport implements ToCollection
                     $data['team_leader_id'] = $uploader->id;
                 }
 
-                // Check if customer already exists by phone
-                $customer = Customer::where('phone', $phone)->first();
+                // Check if customer already exists by phone (without global scopes)
+                $existingCustomer = Customer::withoutGlobalScopes()->where('phone', $phone)->with('sales')->latest()->first();
 
-                if ($customer) {
-                    // Update existing customer
-                    $customer->update($data);
-                } else {
-                    // Create new customer
-                    $data['created_by'] = $this->importRecord->uploaded_by;
-                    Customer::create($data);
+                if ($existingCustomer) {
+                    $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
+                    $duplicateNote = "رقم الهاتف مسجل بالفعل مع المندوب: {$salesName}";
+
+                    if (!empty($data['details'])) {
+                        $data['details'] = $duplicateNote . "\n" . $data['details'];
+                    } else {
+                        $data['details'] = $duplicateNote;
+                    }
                 }
+
+                // Always create new customer record
+                $data['created_by'] = $this->importRecord->uploaded_by;
+                Customer::create($data);
 
                 $successful++;
             } catch (\Exception $e) {

@@ -31,6 +31,25 @@ class CreateCustomer extends CreateRecord
             $data['team_leader_id'] = $salesUser?->team_leader_id;
         }
 
+        if (! empty($data['phone'])) {
+            $existingCustomer = \App\Models\Customer::withoutGlobalScopes()
+                ->where('phone', $data['phone'])
+                ->with('sales')
+                ->latest()
+                ->first();
+
+            if ($existingCustomer) {
+                $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
+                $duplicateNote = "رقم الهاتف مسجل بالفعل مع المندوب: {$salesName}";
+
+                if (empty($data['details'])) {
+                    $data['details'] = $duplicateNote;
+                } elseif (! str_contains($data['details'], 'رقم الهاتف مسجل بالفعل')) {
+                    $data['details'] = $duplicateNote . "\n" . $data['details'];
+                }
+            }
+        }
+
         return $data;
     }
 

@@ -143,7 +143,7 @@
 
     <!-- Print Header (Visible ONLY when printing) -->
     <div class="print-only" style="margin-bottom: 20px; text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 15px;">
-        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 5px; color: #0f172a;">تقرير أداء المبيعات والنشاط الشهري — CRM</h1>
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 5px; color: #0f172a;">تقرير أداء المبيعات والنشاط الشهري — Elwaly</h1>
         <p style="font-size: 14px; color: #475569;">فترة التقرير: {{ $data['period_label'] }} | تاريخ الطباعة: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 
