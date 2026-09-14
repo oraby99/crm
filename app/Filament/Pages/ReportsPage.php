@@ -113,6 +113,7 @@ class ReportsPage extends Page
 
         // Base activity query for period
         $activityQuery = CustomerActivity::query()
+            ->whereHas('customer')
             ->whereBetween('created_at', [$fromDate, $untilDate]);
         if ($user && $user->isTeamLeader()) {
             $activityQuery->whereHas('customer', fn ($q) => $q->where('team_leader_id', $user->id));
@@ -158,7 +159,8 @@ class ReportsPage extends Page
 
             $repNewCustomersCount = (clone $repCustomers)->count();
 
-            $repActivitiesCount = CustomerActivity::where('user_id', $rep->id)
+            $repActivitiesCount = CustomerActivity::whereHas('customer')
+                ->where('user_id', $rep->id)
                 ->whereBetween('created_at', [$fromDate, $untilDate])
                 ->count();
 
