@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\ActivityType;
+use App\Enums\CustomerType;
 use App\Enums\UserRole;
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Filament\Resources\CustomerResource\RelationManagers\ActivitiesRelationManager;
@@ -12,7 +13,13 @@ use App\Models\CustomerStatus;
 use App\Models\User;
 use App\Services\AuditService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -22,8 +29,11 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 class CustomerResource extends Resource
 {
@@ -82,12 +92,12 @@ class CustomerResource extends Resource
                             ->tel()
                             ->maxLength(30)
                             ->live(onBlur: true)
-                            ->helperText(function ($state, ?\Illuminate\Database\Eloquent\Model $record) {
+                            ->helperText(function ($state, ?Model $record) {
                                 if (blank($state)) {
                                     return null;
                                 }
 
-                                $existingCustomer = \App\Models\Customer::where('phone', $state)
+                                $existingCustomer = Customer::where('phone', $state)
                                     ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
                                     ->with('sales')
                                     ->first();
@@ -95,7 +105,7 @@ class CustomerResource extends Resource
                                 if ($existingCustomer) {
                                     $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
 
-                                    return new \Illuminate\Support\HtmlString(
+                                    return new HtmlString(
                                         '<span class="text-danger-600 dark:text-danger-400 text-sm font-medium">رقم الهاتف مسجل بالفعل مع المندوب: '.e($salesName).'</span>'
                                     );
                                 }
@@ -108,6 +118,16 @@ class CustomerResource extends Resource
                             ->tel()
                             ->nullable()
                             ->maxLength(30),
+
+                        Forms\Components\Select::make('type')
+                            ->label('تصنيف العميل')
+                            ->options(
+                                collect(CustomerType::cases())
+                                    ->mapWithKeys(fn (CustomerType $type) => [$type->value => $type->label()])
+                                    ->toArray()
+                            )
+                            ->default(CustomerType::Client->value)
+                            ->required(),
 
                         Forms\Components\Select::make('platform_id')
                             ->label('المصدر / المنصة')
@@ -228,6 +248,15 @@ class CustomerResource extends Resource
                     ->searchable()
                     ->copyable()
                     ->icon('heroicon-o-phone'),
+
+                Tables\Columns\TextColumn::make('type')
+                    ->label('التصنيف')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state instanceof CustomerType ? $state->label() : (CustomerType::tryFrom((string) $state)?->label() ?? 'عميل'))
+                    ->color(fn ($state) => $state instanceof CustomerType ? $state->color() : (CustomerType::tryFrom((string) $state)?->color() ?? 'info'))
+                    ->icon(fn ($state) => $state instanceof CustomerType ? $state->icon() : (CustomerType::tryFrom((string) $state)?->icon() ?? 'heroicon-o-user'))
+                    ->searchable()
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('platform.name')
                     ->label('المصدر')
@@ -355,6 +384,14 @@ class CustomerResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('تصنيف العميل')
+                    ->options(
+                        collect(CustomerType::cases())
+                            ->mapWithKeys(fn (CustomerType $type) => [$type->value => $type->label()])
+                            ->toArray()
+                    ),
+
                 Tables\Filters\SelectFilter::make('status_id')
                     ->label('الحالة')
                     ->relationship('status', 'name')
@@ -494,16 +531,16 @@ class CustomerResource extends Resource
                         Notification::make()->title('تم إضافة النشاط')->success()->send();
                     }),
 
-                \Filament\Actions\DeleteAction::make()
+                DeleteAction::make()
                     ->label('حذف')
                     ->visible(fn (Customer $record) => Auth::user()?->can('delete', $record)),
 
-                \Filament\Actions\RestoreAction::make()
+                RestoreAction::make()
                     ->label('استعادة'),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\BulkAction::make('assign_to_sales')
+                BulkActionGroup::make([
+                    BulkAction::make('assign_to_sales')
                         ->label('تعيين لمندوب')
                         ->icon('heroicon-o-user')
                         ->color('primary')
@@ -541,7 +578,7 @@ class CustomerResource extends Resource
                         ->requiresConfirmation()
                         ->deselectRecordsAfterCompletion(),
 
-                    \Filament\Actions\BulkAction::make('change_status')
+                    BulkAction::make('change_status')
                         ->label('تغيير الحالة')
                         ->icon('heroicon-o-arrow-path')
                         ->form([
@@ -577,7 +614,7 @@ class CustomerResource extends Resource
                         ->requiresConfirmation()
                         ->deselectRecordsAfterCompletion(),
 
-                    \Filament\Actions\BulkAction::make('schedule_follow_up')
+                    BulkAction::make('schedule_follow_up')
                         ->label('جدولة متابعة')
                         ->icon('heroicon-o-calendar')
                         ->form([
@@ -592,19 +629,19 @@ class CustomerResource extends Resource
                         })
                         ->deselectRecordsAfterCompletion(),
 
-                    \Filament\Actions\DeleteBulkAction::make()
+                    DeleteBulkAction::make()
                         ->label('حذف المحدد')
                         ->visible(fn () => $authUser?->isAdmin() || $authUser?->isTeamLeader()),
 
-                    \Filament\Actions\RestoreBulkAction::make()
+                    RestoreBulkAction::make()
                         ->label('استعادة المحدد'),
 
-                    \Filament\Actions\BulkAction::make('export_csv')
+                    BulkAction::make('export_csv')
                         ->label('تصدير المحدد (CSV)')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->color('success')
-                        ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
-                            $csvFileName = 'customers_' . now()->format('Y-m-d_H-i-s') . '.csv';
+                        ->action(function (Collection $records) {
+                            $csvFileName = 'customers_'.now()->format('Y-m-d_H-i-s').'.csv';
 
                             $headers = [
                                 'Content-Type' => 'text/csv; charset=UTF-8',
@@ -616,7 +653,7 @@ class CustomerResource extends Resource
 
                             $callback = function () use ($records) {
                                 $file = fopen('php://output', 'w');
-                                fputs($file, "\xEF\xBB\xBF");
+                                fwrite($file, "\xEF\xBB\xBF");
 
                                 // Dynamically calculate max follow-up count among selected records
                                 $maxFollowUps = 0;
@@ -632,6 +669,7 @@ class CustomerResource extends Resource
                                     'اسم العميل',
                                     'رقم الهاتف',
                                     'رقم الواتساب',
+                                    'تصنيف العميل',
                                     'المصدر',
                                     'الاحتياج',
                                     'الحالة',
@@ -659,6 +697,7 @@ class CustomerResource extends Resource
                                         $customer->name,
                                         $customer->phone,
                                         $customer->whatsapp_phone ?? '',
+                                        $customer->type?->label() ?? 'عميل',
                                         $customer->platform?->name ?? '',
                                         $customer->customerNeed?->name ?? '',
                                         $customer->status?->name ?? '',

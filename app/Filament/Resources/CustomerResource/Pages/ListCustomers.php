@@ -2,11 +2,19 @@
 
 namespace App\Filament\Resources\CustomerResource\Pages;
 
+use App\Enums\ImportStatus;
 use App\Filament\Resources\CustomerResource;
+use App\Imports\CustomersImport;
+use App\Models\Import;
 use Filament\Actions;
-use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Forms\Components\FileUpload;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ListCustomers extends ListRecords
 {
@@ -16,9 +24,91 @@ class ListCustomers extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
+        $user = Auth::user();
+        $canImport = $user?->isAdmin() || $user?->isTeamLeader();
+
+        $actions = [
             Actions\CreateAction::make()->label('إضافة عميل'),
         ];
+
+        if ($canImport) {
+            $actions[] = Actions\Action::make('download_sample')
+                ->label('تحميل نموذج إكسيل')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('success')
+                ->action(function () {
+                    $samplePath = public_path('samples/sample_customers.xlsx');
+                    if (file_exists($samplePath)) {
+                        return response()->download($samplePath, 'نموذج_استيراد_العملاء.xlsx');
+                    }
+
+                    Notification::make()
+                        ->title('ملف النموذج غير متوفر حالياً')
+                        ->danger()
+                        ->send();
+                });
+
+            $actions[] = Actions\Action::make('import_excel')
+                ->label('استيراد من إكسيل')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('info')
+                ->form([
+                    FileUpload::make('file')
+                        ->label('ملف الإكسيل (.xlsx / .xls / .csv)')
+                        ->helperText('اختر ملف الإكسيل الذي يحتوي على بيانات العملاء.')
+                        ->acceptedFileTypes([
+                            'application/vnd.ms-excel',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'text/csv',
+                            'text/plain',
+                            'application/csv',
+                            'application/excel',
+                            'application/x-excel',
+                            'application/x-msexcel',
+                            'application/octet-stream',
+                        ])
+                        ->rules(['mimes:xlsx,xls,csv,txt'])
+                        ->required()
+                        ->storeFiles(true)
+                        ->directory('imports'),
+                ])
+                ->action(function (array $data) {
+                    $filePath = $data['file'];
+
+                    $import = Import::create([
+                        'uploaded_by' => Auth::id(),
+                        'file_name' => basename($filePath),
+                        'file_path' => $filePath,
+                        'status' => ImportStatus::Pending->value,
+                    ]);
+
+                    try {
+                        if (! class_exists('\ZipArchive') && in_array(strtolower(pathinfo($filePath, PATHINFO_EXTENSION)), ['xlsx', 'xls'])) {
+                            throw new \Exception('قراءة ملفات الإكسيل (.xlsx) تتطلب تفعيل إضافة Zip في إعدادات PHP (extension=zip). يمكنك استخدام ملف CSV بدلاً منه حنى تفعيل الإضافة.');
+                        }
+
+                        Excel::import(new CustomersImport($import), Storage::path($filePath));
+
+                        Notification::make()
+                            ->title('تم استيراد الملف بنجاح')
+                            ->success()
+                            ->send();
+                    } catch (\Exception $e) {
+                        $import->update([
+                            'status' => ImportStatus::Failed->value,
+                            'error_log' => $e->getMessage(),
+                        ]);
+
+                        Notification::make()
+                            ->title('حدث خطأ أثناء الاستيراد')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                });
+        }
+
+        return $actions;
     }
 
     public function mount(): void

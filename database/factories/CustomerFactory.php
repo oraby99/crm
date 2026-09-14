@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CustomerType;
 use App\Models\Customer;
 use App\Models\CustomerNeed;
 use App\Models\CustomerStatus;
@@ -36,10 +37,11 @@ class CustomerFactory extends Factory
             'name' => fake('ar_SA')->name(),
             'phone' => '01'.fake()->randomElement(['0', '1', '2', '5']).fake()->numerify('########'),
             'whatsapp_phone' => fake()->boolean(70) ? ('01'.fake()->randomElement(['0', '1', '2', '5']).fake()->numerify('########')) : null,
-            'platform_id' => Platform::inRandomOrder()->value('id') ?? Platform::factory(),
-            'customer_need_id' => CustomerNeed::inRandomOrder()->value('id') ?? CustomerNeed::factory(),
+            'type' => fake()->randomElement(CustomerType::cases())->value,
+            'platform_id' => Platform::inRandomOrder()->value('id'),
+            'customer_need_id' => CustomerNeed::inRandomOrder()->value('id'),
             'details' => fake()->randomElement($arabicDetails),
-            'status_id' => CustomerStatus::inRandomOrder()->value('id') ?? CustomerStatus::factory(),
+            'status_id' => CustomerStatus::inRandomOrder()->value('id'),
             'next_follow_up_at' => fake()->boolean(60) ? fake()->dateTimeBetween('-3 days', '+10 days') : null,
         ];
     }

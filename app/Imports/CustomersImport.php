@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Enums\CustomerType;
 use App\Enums\ImportStatus;
 use App\Models\Customer;
 use App\Models\CustomerNeed;
@@ -95,6 +96,7 @@ class CustomersImport implements ToCollection
                 }
 
                 $whatsappPhone = $this->normalizePhone($this->getFieldValue($row, $headerMap, 'whatsapp', $hasHeaderRow ? null : $defaultIndexMap['whatsapp']));
+                $typeInput = $this->getFieldValue($row, $headerMap, 'type', $hasHeaderRow ? null : ($defaultIndexMap['type'] ?? null));
                 $platformInput = $this->getFieldValue($row, $headerMap, 'platform', $hasHeaderRow ? null : $defaultIndexMap['platform']);
                 $needInput = $this->getFieldValue($row, $headerMap, 'need', $hasHeaderRow ? null : $defaultIndexMap['need']);
                 $statusInput = $this->getFieldValue($row, $headerMap, 'status', $hasHeaderRow ? null : $defaultIndexMap['status']);
@@ -108,6 +110,7 @@ class CustomersImport implements ToCollection
                 $data = [
                     'name' => $name,
                     'phone' => $phone,
+                    'type' => $this->mapCustomerType($typeInput),
                 ];
 
                 if ($whatsappPhone !== null) {
@@ -152,8 +155,8 @@ class CustomersImport implements ToCollection
                     $salesName = $existingCustomer->sales ? $existingCustomer->sales->name : 'الإدارة (بدون مندوب محدد)';
                     $duplicateNote = "رقم الهاتف مسجل بالفعل مع المندوب: {$salesName}";
 
-                    if (!empty($data['details'])) {
-                        $data['details'] = $duplicateNote . "\n" . $data['details'];
+                    if (! empty($data['details'])) {
+                        $data['details'] = $duplicateNote."\n".$data['details'];
                     } else {
                         $data['details'] = $duplicateNote;
                     }
@@ -198,6 +201,7 @@ class CustomersImport implements ToCollection
             'name' => ['name', 'customername', 'fullname', 'اسمالعميل', 'الاسم', 'اسموالعميل', 'اسمعميل', 'asmlaamyl', 'asmalamyl', 'alasm', 'asm'],
             'phone' => ['phone', 'mobile', 'phonenumber', 'رقمالهاتف', 'الهاتف', 'جوال', 'رقمالجوال', 'rqmalhatf', 'rqmlhatf', 'alhatf', 'alhtf'],
             'whatsapp' => ['whatsapp', 'whatsappphone', 'waphone', 'رقمالواتساب', 'الواتساب', 'واتساب', 'rqmalvatsab', 'alvatsab', 'vatsab'],
+            'type' => ['type', 'customertype', 'category', 'تصنيف', 'تصنيفالعميل', 'تصنيفات', 'نوعالعميل', 'نوع', 'نوعالعملاء', 'المعاملة', 'tsnyf', 'nv'],
             'platform' => ['platform', 'source', 'platformid', 'المصدر', 'المنصة', 'المصدرالمنصة', 'almasdr', 'almnst'],
             'need' => ['need', 'customerneed', 'productneed', 'الاحتياج', 'احتياجالعميل', 'احتياج', 'alahtyaj', 'ahtyaj'],
             'status' => ['status', 'customerstatus', 'الحالة', 'حالةالعميل', 'حالة', 'alhalat', 'halat'],
@@ -243,8 +247,40 @@ class CustomersImport implements ToCollection
 
         // Strip trailing .0 if float conversion introduced it
         $phone = preg_replace('/\.0+$/', '', $phone);
+        $phone = trim($phone);
 
-        return trim($phone);
+        // Auto-fix 10-digit Egyptian mobile numbers missing leading zero from Excel
+        if (preg_match('/^1[0-25][0-9]{8}$/', $phone)) {
+            $phone = '0'.$phone;
+        }
+
+        return $phone;
     }
 
+    private function mapCustomerType(?string $val): string
+    {
+        if (blank($val)) {
+            return CustomerType::Client->value;
+        }
+
+        $normalized = mb_strtolower(trim($val));
+
+        if (str_contains($normalized, 'مهندس') || str_contains($normalized, 'مكتب') || str_contains($normalized, 'استشاري') || str_contains($normalized, 'engineer')) {
+            return CustomerType::Engineer->value;
+        }
+
+        if (str_contains($normalized, 'شركة') || str_contains($normalized, 'تشطيب') || str_contains($normalized, 'مقاول') || str_contains($normalized, 'ديكور') || str_contains($normalized, 'finishing')) {
+            return CustomerType::FinishingCompany->value;
+        }
+
+        if (str_contains($normalized, 'عميل') || str_contains($normalized, 'فرد') || str_contains($normalized, 'client')) {
+            return CustomerType::Client->value;
+        }
+
+        if (str_contains($normalized, 'آخر') || str_contains($normalized, 'اخر') || str_contains($normalized, 'other')) {
+            return CustomerType::Other->value;
+        }
+
+        return CustomerType::Client->value;
+    }
 }

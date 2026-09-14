@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CustomerType;
 use App\Scopes\CustomerScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,7 @@ class Customer extends Model
         'name',
         'phone',
         'whatsapp_phone',
+        'type',
         'platform_id',
         'customer_need_id',
         'details',
@@ -33,11 +35,12 @@ class Customer extends Model
     ];
 
     /**
-     * @return array<string, string>
+     * @return array<string, string|class-string>
      */
     protected function casts(): array
     {
         return [
+            'type' => CustomerType::class,
             'next_follow_up_at' => 'datetime',
         ];
     }

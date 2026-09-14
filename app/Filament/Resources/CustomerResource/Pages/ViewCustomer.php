@@ -3,13 +3,14 @@
 namespace App\Filament\Resources\CustomerResource\Pages;
 
 use App\Enums\ActivityType;
+use App\Enums\CustomerType;
 use App\Filament\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\CustomerActivity;
 use App\Services\AuditService;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Infolists;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
@@ -103,32 +104,39 @@ class ViewCustomer extends ViewRecord
             ->schema([
                 Section::make('معلومات العميل')
                     ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('name')
+                        TextEntry::make('name')
                             ->label('الاسم'),
 
-                        \Filament\Infolists\Components\TextEntry::make('phone')
+                        TextEntry::make('phone')
                             ->label('الهاتف')
                             ->copyable()
                             ->icon('heroicon-o-phone'),
 
-                        \Filament\Infolists\Components\TextEntry::make('whatsapp_phone')
+                        TextEntry::make('whatsapp_phone')
                             ->label('واتساب')
                             ->copyable()
                             ->icon('heroicon-o-chat-bubble-left-right')
                             ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('platform.name')
+                        TextEntry::make('type')
+                            ->label('التصنيف')
+                            ->badge()
+                            ->formatStateUsing(fn ($state) => $state instanceof CustomerType ? $state->label() : (CustomerType::tryFrom((string) $state)?->label() ?? 'عميل'))
+                            ->color(fn ($state) => $state instanceof CustomerType ? $state->color() : (CustomerType::tryFrom((string) $state)?->color() ?? 'info'))
+                            ->icon(fn ($state) => $state instanceof CustomerType ? $state->icon() : (CustomerType::tryFrom((string) $state)?->icon() ?? 'heroicon-o-user')),
+
+                        TextEntry::make('platform.name')
                             ->label('المصدر')
                             ->badge()
                             ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('customerNeed.name')
+                        TextEntry::make('customerNeed.name')
                             ->label('الاحتياج')
                             ->badge()
                             ->color('info')
                             ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('status.name')
+                        TextEntry::make('status.name')
                             ->label('الحالة')
                             ->badge()
                             ->color(fn ($record) => $record->status?->color ?? 'gray')
@@ -138,13 +146,13 @@ class ViewCustomer extends ViewRecord
 
                 Section::make('التعيين')
                     ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('sales.name')
+                        TextEntry::make('sales.name')
                             ->label('المندوب'),
 
-                        \Filament\Infolists\Components\TextEntry::make('teamLeader.name')
+                        TextEntry::make('teamLeader.name')
                             ->label('مدير الفريق'),
 
-                        \Filament\Infolists\Components\TextEntry::make('next_follow_up_at')
+                        TextEntry::make('next_follow_up_at')
                             ->label('موعد المتابعة التالية')
                             ->dateTime('d/m/Y H:i')
                             ->color(fn ($record) => match (true) {
@@ -155,7 +163,7 @@ class ViewCustomer extends ViewRecord
                             })
                             ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('created_at')
+                        TextEntry::make('created_at')
                             ->label('تاريخ الإضافة')
                             ->dateTime('d/m/Y H:i'),
                     ])
@@ -171,7 +179,7 @@ class ViewCustomer extends ViewRecord
 
                         if ($activities->isEmpty()) {
                             return [
-                                \Filament\Infolists\Components\TextEntry::make('no_activities')
+                                TextEntry::make('no_activities')
                                     ->hiddenLabel()
                                     ->default('لم يتم تسجيل أي متابعات أو أنشطة لهذا العميل بعد.')
                                     ->color('gray')
@@ -219,12 +227,12 @@ class ViewCustomer extends ViewRecord
                                 : null;
 
                             $fields = [
-                                \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_user")
+                                TextEntry::make("act_{$activity->id}_user")
                                     ->label('منفذ المتابعة')
                                     ->default($userName)
                                     ->icon('heroicon-o-user'),
 
-                                \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_type")
+                                TextEntry::make("act_{$activity->id}_type")
                                     ->label('نوع النشاط')
                                     ->default($typeLabel)
                                     ->badge()
@@ -232,7 +240,7 @@ class ViewCustomer extends ViewRecord
                             ];
 
                             if ($statusChange) {
-                                $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_status")
+                                $fields[] = TextEntry::make("act_{$activity->id}_status")
                                     ->label('تغيير الحالة')
                                     ->default($statusChange)
                                     ->badge()
@@ -240,20 +248,20 @@ class ViewCustomer extends ViewRecord
                             }
 
                             if ($nextDate) {
-                                $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_next")
+                                $fields[] = TextEntry::make("act_{$activity->id}_next")
                                     ->label('موعد المتابعة القادمة')
                                     ->default($nextDate)
                                     ->icon('heroicon-o-calendar')
                                     ->color('warning');
                             }
 
-                            $fields[] = \Filament\Infolists\Components\TextEntry::make("act_{$activity->id}_notes")
+                            $fields[] = TextEntry::make("act_{$activity->id}_notes")
                                 ->label('الملاحظات والتفاصيل')
                                 ->default($notes)
                                 ->columnSpanFull()
                                 ->markdown();
 
-                            $badgeTag = ($num === $totalCount) ? " — (أحدث متابعة)" : "";
+                            $badgeTag = ($num === $totalCount) ? ' — (أحدث متابعة)' : '';
 
                             $items[] = Section::make("المتابعة رقم {$num}{$badgeTag} ({$dateStr})")
                                 ->icon('heroicon-o-chat-bubble-bottom-center-text')
@@ -268,7 +276,7 @@ class ViewCustomer extends ViewRecord
 
                 Section::make('التفاصيل')
                     ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('details')
+                        TextEntry::make('details')
                             ->label('التفاصيل والملاحظات')
                             ->columnSpanFull()
                             ->placeholder('لا توجد تفاصيل'),
