@@ -46,7 +46,7 @@ class SendFollowUpNotifications extends Command
             });
         };
 
-        $totalPending = Customer::withoutGlobalScopes()->where($pendingQuery)->count();
+        $totalPending = Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)->where($pendingQuery)->count();
 
         $notificationsSent = 0;
 
@@ -68,7 +68,7 @@ class SendFollowUpNotifications extends Command
             }
 
             foreach ($salesUsers as $sales) {
-                $count = Customer::withoutGlobalScopes()
+                $count = Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)
                     ->where('sales_id', $sales->id)
                     ->where($pendingQuery)
                     ->count();
@@ -91,7 +91,7 @@ class SendFollowUpNotifications extends Command
             }
 
             foreach ($teamLeaders as $tl) {
-                $count = Customer::withoutGlobalScopes()
+                $count = Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)
                     ->where('team_leader_id', $tl->id)
                     ->where($pendingQuery)
                     ->count();
@@ -114,7 +114,7 @@ class SendFollowUpNotifications extends Command
             }
         }
 
-        $totalToday = Customer::withoutGlobalScopes()
+        $totalToday = Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)
             ->whereDate('next_follow_up_at', today())
             ->count();
 
@@ -136,7 +136,7 @@ class SendFollowUpNotifications extends Command
             }
 
             foreach ($salesUsers as $sales) {
-                $todayCount = Customer::withoutGlobalScopes()
+                $todayCount = Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)
                     ->where('sales_id', $sales->id)
                     ->whereDate('next_follow_up_at', today())
                     ->count();

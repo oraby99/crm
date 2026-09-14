@@ -63,7 +63,6 @@ class CustomerResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class])
             ->with(['sales', 'teamLeader', 'status', 'platform', 'customerNeed']);
     }
 

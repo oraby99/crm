@@ -198,14 +198,14 @@ class UserResource extends Resource
                     ->label('العملاء')
                     ->state(function (User $record): int {
                         if ($record->isSales()) {
-                            return \App\Models\Customer::withoutGlobalScopes()->where('sales_id', $record->id)->count();
+                            return \App\Models\Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)->where('sales_id', $record->id)->count();
                         }
 
                         if ($record->isTeamLeader()) {
-                            return \App\Models\Customer::withoutGlobalScopes()->where('team_leader_id', $record->id)->count();
+                            return \App\Models\Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)->where('team_leader_id', $record->id)->count();
                         }
 
-                        return \App\Models\Customer::withoutGlobalScopes()->count();
+                        return \App\Models\Customer::withoutGlobalScope(\App\Scopes\CustomerScope::class)->count();
                     })
                     ->badge()
                     ->color('primary'),
