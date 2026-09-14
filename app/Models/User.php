@@ -26,6 +26,17 @@ class User extends Authenticatable
      */
     protected $hidden = ['password', 'remember_token'];
 
+    protected static function booted(): void
+    {
+        static::saved(function (User $user) {
+            if ($user->wasChanged('team_leader_id')) {
+                Customer::withoutGlobalScopes()
+                    ->where('sales_id', $user->id)
+                    ->update(['team_leader_id' => $user->team_leader_id]);
+            }
+        });
+    }
+
     /**
      * Get the attributes that should be cast.
      *

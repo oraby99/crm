@@ -47,6 +47,17 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        try {
+            \Illuminate\Support\Facades\DB::table('customers')
+                ->join('users', 'customers.sales_id', '=', 'users.id')
+                ->whereRaw('customers.team_leader_id != users.team_leader_id OR (customers.team_leader_id IS NOT NULL AND users.team_leader_id IS NULL)')
+                ->update([
+                    'customers.team_leader_id' => \Illuminate\Support\Facades\DB::raw('users.team_leader_id'),
+                ]);
+        } catch (\Throwable $e) {
+            // Ignore temporary DB errors during setup/migrations
+        }
+
         $user = Auth::user();
 
         $query = parent::getEloquentQuery()
